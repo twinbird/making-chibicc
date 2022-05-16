@@ -98,6 +98,7 @@ struct Node {
 
   // Function call
   char *funcname;
+  Node *args;
 
   // "if" or "for" statement
   Node *cond;
