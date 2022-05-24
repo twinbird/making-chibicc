@@ -124,16 +124,29 @@ typedef enum {
   TY_INT,
   TY_PTR,
   TY_FUNC,
+  TY_ARRAY,
 } TypeKind;
 
 struct Type {
   TypeKind kind;
 
-  // Pointer
+  int size; // sizeof() value
+
+  // Pointer-to or array-of type. We intentionally use the same member
+  // to represent pointer/array duality in C.
+  //
+  // In many contexts in which a pointer is expected, we examine this
+  // member instead of "kind" member to determine wheter a type is a
+  // pointer or not. That means in many contexts "array of T" is
+  // naturally handled as if it were "pointer to T", as required by
+  // the C spec.
   Type *base;
 
   // Declaration
   Token *name;
+
+  // Array
+  int array_len;
 
   // Function Type
   Type *return_ty;
@@ -148,6 +161,7 @@ Type *copy_type(Type *ty);
 Type *pointer_to(Type *base);
 void add_type(Node *node);
 Type *func_type(Type *return_ty);
+Type *array_of(Type *base, int size);
 
 //
 // codegen.c

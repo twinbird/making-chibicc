@@ -90,19 +90,21 @@ static char *get_ident(Token *tok) {
   return strndup(tok->loc, tok->len);
 }
 
+static int get_number(Token *tok) {
+  if (tok->kind != TK_NUM)
+    error_tok(tok, "expected a number");
+  return tok->val;
+}
+
 // declspec = "int"
 static Type *declspec(Token **rest, Token *tok) {
   *rest = skip(tok, "int");
   return ty_int;
 }
 
-// type-suffix = ("(" func-params? ")")?
-// func-params = param ("," param)*
+// func-params = (param ("," param)*)? ")"
 // param       = declspec declarator
-static Type *type_suffix(Token **rest, Token *tok, Type *ty) {
-  if (equal(tok, "(")) {
-    tok = tok->next;
-
+static Type *func_params(Token **rest, Token *tok, Type *ty) {
     Type head = {};
     Type *cur = &head;
 
@@ -118,6 +120,19 @@ static Type *type_suffix(Token **rest, Token *tok, Type *ty) {
     ty->params = head.next;
     *rest = tok->next;
     return ty;
+}
+
+// type-suffix = "(" func-params
+//             | "[" num "]"
+//             | ε
+static Type *type_suffix(Token **rest, Token *tok, Type *ty) {
+  if (equal(tok, "("))
+    return func_params(rest, tok->next, ty);
+
+  if (equal(tok, "[")) {
+    int sz = get_number(tok->next);
+    *rest = skip(tok->next->next, "]");
+    return array_of(ty, sz);
   }
 
   *rest = tok;
@@ -266,8 +281,10 @@ static Node *expr(Token **rest, Token *tok) {
 // assign = equality ("=" assign)?
 static Node *assign(Token **rest, Token *tok) {
   Node *node = equality(&tok, tok);
+
   if (equal(tok, "="))
     node = new_binary(ND_ASSIGN, node, assign(&tok, tok->next), tok);
+
   *rest = tok;
   return node;
 }
@@ -350,7 +367,7 @@ static Node *new_add(Node *lhs, Node *rhs, Token *tok) {
   }
 
   // ptr + num
-  rhs = new_binary(ND_MUL, rhs, new_num(8, tok), tok);
+  rhs = new_binary(ND_MUL, rhs, new_num(lhs->ty->base->size, tok), tok);
   return new_binary(ND_ADD, lhs, rhs, tok);
 }
 
@@ -365,7 +382,7 @@ static Node *new_sub(Node *lhs, Node *rhs, Token *tok) {
 
   // ptr - num
   if (lhs->ty->base && is_integer(rhs->ty)) {
-    rhs = new_binary(ND_MUL, rhs, new_num(8, tok), tok);
+    rhs = new_binary(ND_MUL, rhs, new_num(lhs->ty->base->size, tok), tok);
     add_type(rhs);
     Node *node = new_binary(ND_SUB, lhs, rhs, tok);
     node->ty = lhs->ty;
@@ -376,7 +393,7 @@ static Node *new_sub(Node *lhs, Node *rhs, Token *tok) {
   if (lhs->ty->base && rhs->ty->base) {
     Node *node = new_binary(ND_SUB, lhs, rhs, tok);
     node->ty = ty_int;
-    return new_binary(ND_DIV, node, new_num(8, tok), tok);
+    return new_binary(ND_DIV, node, new_num(lhs->ty->base->size, tok), tok);
   }
 
   error_tok(tok, "invalid operands");
