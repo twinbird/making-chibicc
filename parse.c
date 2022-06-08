@@ -196,11 +196,16 @@ static int get_number(Token *tok) {
   return tok->val;
 }
 
-// declspec = "char" | "int" | "long" | struct-decl
+// declspec = "char" | "short" | "int" | "long" | struct-decl
 static Type *declspec(Token **rest, Token *tok) {
   if (equal(tok, "char")) {
     *rest = tok->next;
     return ty_char;
+  }
+
+  if (equal(tok, "short")) {
+    *rest = tok->next;
+    return ty_short;
   }
 
   if (equal(tok, "int")) {

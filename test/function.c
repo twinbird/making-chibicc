@@ -29,6 +29,10 @@ int sub_long(long a, long b, long c) {
   return a - b - c;
 }
 
+int sub_short(short a, short b, short c) {
+  return a - b - c;
+}
+
 int fib(int x) {
   if (x<=1)
     return 1;
